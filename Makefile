@@ -1,11 +1,31 @@
 CCPATH:=$(HOME)/opt/cross/bin
 export PATH:=$(CCPATH):$(PATH)
 
-# i386 x64 arm-64
-KERNEL_ARCH?=i386
+# i686 x86_64 arm-64 arm-32
+ARCH?=i686
+ifeq ($(ARCH),i386)
+ARCH:=i686
+else ifeq ($(ARCH),x86)
+ARCH:=i686
+else ifeq ($(ARCH),x64)
+ARCH:=x86_64
+else ifeq ($(ARCH), x86-64)
+ARCH:=x86_64
+else ifeq ($(ARCH),AMD64)
+ARCH:=x86_64
+else ifeq ($(ARCH),INTEL64)
+ARCH:=x86_64
+else ifeq ($(ARCH),arm_32)
+ARCH:=arm-32
+else ifeq ($(ARCH),arm)
+ARCH:=arm-64
+else ifeq ($(ARCH),arm_64)
+ARCH:=arm-64
+endif
 
-ASMC:=i686-elf-as
-CC:=i686-elf-gcc
+
+ASMC:=$(ARCH)-elf-as
+CC:=$(ARCH)-elf-gcc
 CFLAGS?=-O2 -g 
 CFLAGS:=$(CFLAGS) -Wall -Wextra -ffreestanding -fno-exceptions -Wno-unused-function
 
@@ -14,31 +34,32 @@ sysroot:=$(buildDIR)/sysroot
 LIBC_INCLUDEDIR:=usr/include
 LIBC_SOURCEDIR:=usr/src
 
-ifeq ($(KERNEL_ARCH),i386)
-	KERNEL_FOLDER:=kernel/kernel-i386
-else ifeq ($(KERNEL_ARCH),x64)
-	KERNEL_FOLDER:=kernel/kernel-x86_64
-else ifeq ($(KERNEL_ARCH),arm)
-	KERNEL_FOLDER:=
-endif
+KERNEL_FOLDER:=kernel/kernel-$(ARCH)
 LIBK_INCLUDEDIR:=$(KERNEL_FOLDER)/libkernel/include
 LIBK_SOURCEDIR:=$(KERNEL_FOLDER)/libkernel/src
+
+LIBKCommon_INCLUDEDIR:=kernel/libkernel/include
+LIBKCommon_SOURCEDIR:=kernel/libkernel/src
 
 LIBCList:=stdlib stdio
 LIBCHeaders:= sys/cdefs.h string.h ctype.h
 LIBKList:=VGA_TTY mem/paging mem/virtual_mem_manager mem/physical_mem_manager
-LIBKHeaders:= mem_manager.h kmacro.h
+LIBKHeaders:= mem_manager.h
+LIBKListCommon:=
+LIBKHeadersCommon:=kmacro.h mem/multiboot.h
 
 
 CRTBEGIN_OBJ:=$(shell $(CCPATH)/$(CC) $(CFLAGS) -print-file-name=crtbegin.o)
 CRTEND_OBJ:=$(shell $(CCPATH)/$(CC) $(CFLAGS) -print-file-name=crtend.o)
 
-IFLAGS:=$(addprefix -I,$(LIBC_INCLUDEDIR) $(LIBK_INCLUDEDIR))
+IFLAGS:=$(addprefix -I,$(LIBC_INCLUDEDIR) $(LIBK_INCLUDEDIR) $(LIBKCommon_INCLUDEDIR))
 
 LIBCFILES:=$(addprefix $(sysroot)/usr/lib/, $(addsuffix .o,$(LIBCList)))
 LIBCHeaderFILES:=$(addprefix $(sysroot)/usr/include/, $(LIBCHeaders))
 LIBKFILES:=$(addprefix $(sysroot)/lib/kernel/, $(addsuffix .o,$(LIBKList)))
 LIBKHeaderFILES:=$(addprefix $(sysroot)/lib/kernel/include/, $(LIBKHeaders))
+LIBKCommonFILES:=$(addprefix $(sysroot)/lib/kernel/, $(addsuffix .o,$(LIBKListCommon)))
+LIBKCommonHeaderFILES:=$(addprefix $(sysroot)/lib/kernel/include/, $(LIBKHeadersCommon))
 
 
 .PHONY: all
@@ -76,7 +97,7 @@ $(LIBCHeaderFILES): $(sysroot)/usr/include/%.h: $(LIBC_INCLUDEDIR)/%.h $(LIBC_IN
 	@ mkdir -p $(sysroot)/usr/include/$(*D)
 	cp $(LIBC_INCLUDEDIR)/$*.h $(sysroot)/usr/include/$*.h
 
-$(LIBKFILES): $(sysroot)/lib/kernel/%.o: $(LIBK_SOURCEDIR)/%.c $(LIBK_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h $(LIBKHeaderFILES)
+$(LIBKFILES): $(sysroot)/lib/kernel/%.o: $(LIBK_SOURCEDIR)/%.c $(LIBK_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h $(LIBKHeaderFILES) $(LIBKCommonHeaderFILES)
 	@ mkdir -p $(sysroot)/lib/kernel/$(*D)
 	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
 	cp $(LIBK_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
@@ -85,6 +106,16 @@ $(LIBKFILES): $(sysroot)/lib/kernel/%.o: $(LIBK_SOURCEDIR)/%.c $(LIBK_INCLUDEDIR
 $(LIBKHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBK_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h
 	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
 	cp $(LIBK_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
+
+$(LIBKListCommon): $(sysroot)/lib/kernel/%.o: $(LIBKCommon_SOURCEDIR)/%.c $(LIBKCommon_INCLUDEDIR)/%.h $(LIBKCommon_INCLUDEDIR)/**/*.h $(LIBKCommonHeaderFILES)
+	@ mkdir -p $(sysroot)/lib/kernel/$(*D)
+	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
+	cp $(LIBKCommon_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
+	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
+
+$(LIBKCommonHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBKCommon_INCLUDEDIR)/%.h $(LIBKCommon_INCLUDEDIR)/**/*.h
+	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
+	cp $(LIBKCommon_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
 
 # --------------- kernel --------------------
 

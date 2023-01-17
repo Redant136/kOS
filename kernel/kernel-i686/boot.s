@@ -97,13 +97,9 @@ _start:
 	lea 4f, %ecx
 	jmp *%ecx
 
-
-
-
 .section .text
 4:
 	# At this point, paging is fully set up and enabled.
-
 	# Unmap the identity mapping as it is now unnecessary. 
 	movl $0, boot_page_directory + 0
 
@@ -118,7 +114,6 @@ _start:
 	pushl %eax
 
 	# Enter the high-level kernel.
-
 	call _kernel_init
 	call _init
 	call kernel_main
@@ -128,7 +123,6 @@ _start:
 
 1:	hlt
 	jmp 1b
-
 
 crash:
 	jmp crash

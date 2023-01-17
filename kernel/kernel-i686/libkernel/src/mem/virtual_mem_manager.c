@@ -49,7 +49,6 @@ static void *_next_virtaddr(size_t _n, size_t startAddr, size_t endAddr)
     }
   }
   CRASH("Ran out of memory addresses");
-  abort();
   return 0;
 }
 
