@@ -17,20 +17,27 @@ stack_bottom:
 .skip 16384
 stack_top:
 
-# Preallocate pages used for paging. Don't hard-code addresses and assume they
-# are available, as the bootloader might have loaded its multiboot structures or
-# modules there. This lets the bootloader know it must avoid the addresses.
 .section .bss, "aw", @nobits
 	.align 4096
+boot_PML5:
+	.skip 4096
+boot_PML4:
+	.skip 4096
 boot_page_directory:
 	.skip 4096
 boot_page_table1:
 	.skip 4096
+multiboot_data:
+	.skip 8
 
 .section .multiboot.text, "a"
 .global _start
 .type _start, @function
 _start:
+	movl $(multiboot_data - 0xFFFFFF8000000000), %edi
+	movl %eax, (%edi)
+	addl $4, %edi
+	movl %ebx, (%edi)
 	movl $(boot_page_table1 - 0xFFFFFF8000000000), %edi
 	movl $0, %esi
 	movl $1023, %ecx
@@ -51,36 +58,53 @@ _start:
 	loop 1b
 
 3:
-# TODO(ANT) modify paging as 64 bit is different than 32
-	movl $(0x000B8000 | 0x003), boot_page_table1 - 0xFFFFFF8000000000 + 1023 * 4
+	# movl $(0x000B8000 | 0x003), boot_page_table1 - 0xFFFFFF8000000000 + 1023 * 4
 
-	movl $(boot_page_table1 - 0xFFFFFF8000000000 + 0x003), boot_page_directory - 0xFFFFFF8000000000 + 0
-	movl $(boot_page_table1 - 0xFFFFFF8000000000 + 0x003), boot_page_directory - 0xFFFFFF8000000000 + 768 * 4
+	# movl $(boot_page_table1 - 0xFFFFFF8000000000 + 0x003), boot_page_directory - 0xFFFFFF8000000000 + 0
+	# movl $(boot_page_table1 - 0xFFFFFF8000000000 + 0x003), boot_page_directory - 0xFFFFFF8000000000 + 768 * 4
 
-	movl $(boot_page_directory - 0xFFFFFF8000000000 + 0x003), boot_page_directory - 0xFFFFFF8000000000 + 1023 * 4
+	# movl $(boot_page_directory - 0xFFFFFF8000000000 + 0x003), boot_page_directory - 0xFFFFFF8000000000 + 1023 * 4
 
-	movl $(boot_page_directory - 0xFFFFFF8000000000), %ecx
-	movl %ecx, %cr3
 
-	movl %cr0, %ecx
-	orl $0x80010000, %ecx
-	movl %ecx, %cr0
 
-	lea 4f, %ecx
-	jmp *%ecx
+
+
+
+# make sure paging is disabled
+  mov %cr0, %rcx
+  and $(~(1 << 31)), %ecx
+  mov %rcx, %cr0
+
+# set PAE bit
+  mov %cr4, %rcx
+  orl  $(1 << 5), %ecx
+  mov %rcx, %cr4
+# Set LME (long mode enable)
+  mov $(0xC0000080), %rcx
+  rdmsr
+  or  (1 << 8), %rax
+  wrmsr
+
+  mov $(pml4_table - 0xFFFFFF8000000000 + 0x3), %rcx
+  mov %rcx, cr3
+
+	lea 4f, %rcx
+	jmp *%rcx
 
 
 .section .text
 4:
 	movl $0, boot_page_directory + 0
 
-	movl %cr3, %ecx
-	movl %ecx, %cr3
+	mov cr3, %rcx
+	mov %rcx, cr3
 
 	mov $stack_top, %esp
 
-	pushl %ebx
-	pushl %eax
+	mov [multiboot_data], %eax
+	mov [multiboot_data+4], %ebx
+	push %rbx
+	push %rax
 
 	call _kernel_init
 	call _init

@@ -3,6 +3,7 @@ export PATH:=$(CCPATH):$(PATH)
 
 # i686 x86_64 arm-64 arm-32
 ARCH?=i686
+# ARCH:=x64
 ifeq ($(ARCH),i386)
 ARCH:=i686
 else ifeq ($(ARCH),x86)
@@ -28,6 +29,7 @@ ASMC:=$(ARCH)-elf-as
 CC:=$(ARCH)-elf-gcc
 CFLAGS?=-O2 -g 
 CFLAGS:=$(CFLAGS) -Wall -Wextra -ffreestanding -fno-exceptions -Wno-unused-function
+LFLAGS:=-ffreestanding -O2 -nostdlib -lgcc -z max-page-size=0x1000
 
 buildDIR:=build
 sysroot:=$(buildDIR)/sysroot
@@ -124,18 +126,18 @@ crt_obj:=$(CRT_OBJ_DIR)/crti.o $(CRTBEGIN_OBJ) $(CRTEND_OBJ) $(CRT_OBJ_DIR)/crtn
 
 $(buildDIR)/kOS.bin: $(KERNEL_FOLDER)/linker.ld $(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
  		$(crt_obj)
-	$(CC) -T $(KERNEL_FOLDER)/linker.ld -o $(buildDIR)/kOS.bin -ffreestanding -O2 -nostdlib -lgcc\
+	$(CC) -T $(KERNEL_FOLDER)/linker.ld -o $(buildDIR)/kOS.bin $(LFLAGS)\
 		$(CRT_OBJ_DIR)/crti.o $(CRTBEGIN_OBJ)\
 		$(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
 		$(CRTEND_OBJ) $(CRT_OBJ_DIR)/crtn.o
 
-$(CRT_OBJ_DIR)/crti.o: kernel/crti.s $(buildDIR)/boot.o
+$(CRT_OBJ_DIR)/crti.o: $(KERNEL_FOLDER)/crti.s $(buildDIR)/boot.o
 	@ mkdir -p $(CRT_OBJ_DIR)
-	$(ASMC) kernel/crti.s -o $(CRT_OBJ_DIR)/crti.o
+	$(ASMC) $(KERNEL_FOLDER)/crti.s -o $(CRT_OBJ_DIR)/crti.o
 
-$(CRT_OBJ_DIR)/crtn.o: kernel/crtn.s $(buildDIR)/boot.o
+$(CRT_OBJ_DIR)/crtn.o: $(KERNEL_FOLDER)/crtn.s $(buildDIR)/boot.o
 	@ mkdir -p $(CRT_OBJ_DIR)
-	$(ASMC) kernel/crtn.s -o $(CRT_OBJ_DIR)/crtn.o
+	$(ASMC) $(KERNEL_FOLDER)/crtn.s -o $(CRT_OBJ_DIR)/crtn.o
 
 $(buildDIR)/boot.o: $(KERNEL_FOLDER)/boot.s
 	@ mkdir -p build

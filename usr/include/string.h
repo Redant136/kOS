@@ -113,7 +113,7 @@ extern "C"
       s1++;
       s2++;
     }
-    return (int)((const unsigned char *)s1 - *(const unsigned char *)s2);
+    return (ptrdiff_t)((const unsigned char *)s1 - *(const unsigned char *)s2);
   }
   static int strncmp(const char *s1, const char *s2, size_t n)
   {
@@ -122,7 +122,7 @@ extern "C"
       if (*s1 != *s2)
         break;
     }
-    return (int)((const unsigned char *)s1 - *(const unsigned char *)s2);
+    return (ptrdiff_t)((const unsigned char *)s1 - *(const unsigned char *)s2);
   }
   static char *strchr(char *s, char c)
   {

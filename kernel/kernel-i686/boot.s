@@ -31,18 +31,23 @@ boot_page_directory:
 # 1024 int array
 boot_page_table1:
 	.skip 4096
-# Further page tables may be required if the kernel grows beyond 3 MiB.
+multiboot_data:
+	.skip 8
 
 # The kernel entry point.
 .section .multiboot.text, "a"
 .global _start
 .type _start, @function
 _start:
-	movl $(boot_page_table1 - 0xC0000000), %edi
+	movl $(multiboot_data - 0xC0000000), %edi
+	movl %eax, (%edi)
+	addl $4, %edi
+	movl %ebx, (%edi)
+	mov $(boot_page_table1 - 0xC0000000), %edi
 	# First address to map is address 0.
-	movl $0, %esi
+	mov $0, %esi
 	# Map 1023 pages. The 1024th will be the VGA text buffer.
-	movl $1023, %ecx
+	mov $1023, %ecx
 
 1:
 	# Only map the kernel.
@@ -53,9 +58,9 @@ _start:
 
 	# Map physical address as "present, writable". Note that this maps
 	# .text and .rodata as writable. Mind security and map them as non-writable.
-	movl %esi, %edx
-	orl $0x003, %edx
-	movl %edx, (%edi)
+	mov %esi, %edx
+	or $0x003, %edx
+	mov %edx, (%edi)
 
 2:
 	# map the page table
@@ -85,13 +90,13 @@ _start:
 	movl $(boot_page_directory - 0xC0000000 + 0x003), boot_page_directory - 0xC0000000 + 1023 * 4
 
 	# Set cr3 to the address of the boot_page_directory.
-	movl $(boot_page_directory - 0xC0000000), %ecx
-	movl %ecx, %cr3
+	mov $(boot_page_directory - 0xC0000000), %ecx
+	mov %ecx, %cr3
 
 	# Enable paging and the write-protect bit.
-	movl %cr0, %ecx
-	orl $0x80010000, %ecx
-	movl %ecx, %cr0
+	mov %cr0, %ecx
+	or $0x80010000, %ecx
+	mov %ecx, %cr0
 
 	# Jump to higher half with an absolute jump. 
 	lea 4f, %ecx
@@ -104,14 +109,17 @@ _start:
 	movl $0, boot_page_directory + 0
 
 	# Reload crc3 to force a TLB flush so the changes to take effect.
-	movl %cr3, %ecx
-	movl %ecx, %cr3
+	mov %cr3, %ecx
+	mov %ecx, %cr3
 
 	# Set up the stack.
 	mov $stack_top, %esp
 
-	pushl %ebx
-	pushl %eax
+	mov [multiboot_data], %eax
+	mov [multiboot_data+4], %ebx
+	push %ebx
+	push %eax
+	
 
 	# Enter the high-level kernel.
 	call _kernel_init

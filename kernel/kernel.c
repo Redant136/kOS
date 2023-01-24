@@ -3,17 +3,12 @@
 #error "You are not using a cross-compiler, you will most certainly run into trouble"
 #endif
 
-/* This tutorial will only work for the 32-bit ix86 targets. */
-#if !defined(__i386__)
-#error "This tutorial needs to be compiled with a ix86-elf compiler"
-#endif
-
 #include <VGA_TTY.h>
 #include <stdio.h>
 #include <mem_manager.h>
 #include <kmacro.h>
 
-void _kernel_init(uint32_t magic,uint32_t mbd)
+void _kernel_init(size_t magic,size_t mbd)
 {
   /* Initialize terminal interface */
   terminal_initialize();

@@ -7,8 +7,8 @@
 
 static void reload_TLB()
 {
-  __asm__ volatile("movl %cr3, %ecx \n\t"
-                   "movl %ecx, %cr3");
+  __asm__ volatile("movl %cr3, %rcx \n\t"
+                   "movl %rcx, %cr3");
 }
 
 void *get_physaddr(void *virtualaddr)
