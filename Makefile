@@ -2,8 +2,8 @@ CCPATH:=$(HOME)/opt/cross/bin
 export PATH:=$(CCPATH):$(PATH)
 
 # i686 x86_64 arm-64 arm-32
-ARCH?=i686
-# ARCH:=x64
+# ARCH?=i686
+ARCH:=x64
 ifeq ($(ARCH),i386)
 ARCH:=i686
 else ifeq ($(ARCH),x86)
@@ -29,6 +29,9 @@ ASMC:=$(ARCH)-elf-as
 CC:=$(ARCH)-elf-gcc
 CFLAGS?=-O2 -g 
 CFLAGS:=$(CFLAGS) -Wall -Wextra -ffreestanding -fno-exceptions -Wno-unused-function
+ifeq ($(ARCH), x86_64)
+CFLAGS:=$(CFLAGS) -m64
+endif
 LFLAGS:=-ffreestanding -O2 -nostdlib -lgcc -z max-page-size=0x1000
 
 buildDIR:=build
@@ -44,11 +47,11 @@ LIBKCommon_INCLUDEDIR:=kernel/libkernel/include
 LIBKCommon_SOURCEDIR:=kernel/libkernel/src
 
 LIBCList:=stdlib stdio
-LIBCHeaders:= sys/cdefs.h string.h ctype.h
+LIBCHeaders:= sys/cdefs.h string.h ctype.h sys/types.h
 LIBKList:=VGA_TTY mem/paging mem/virtual_mem_manager mem/physical_mem_manager
 LIBKHeaders:= mem_manager.h
 LIBKListCommon:=
-LIBKHeadersCommon:=kmacro.h mem/multiboot.h
+LIBKHeadersCommon:=kmacro.h multiboot.h sys/elf32.h sys/elf64.h sys/elf_common.h sys/elf_parser.h
 
 
 CRTBEGIN_OBJ:=$(shell $(CCPATH)/$(CC) $(CFLAGS) -print-file-name=crtbegin.o)
@@ -115,7 +118,7 @@ $(LIBKListCommon): $(sysroot)/lib/kernel/%.o: $(LIBKCommon_SOURCEDIR)/%.c $(LIBK
 	cp $(LIBKCommon_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
-$(LIBKCommonHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBKCommon_INCLUDEDIR)/%.h $(LIBKCommon_INCLUDEDIR)/**/*.h
+$(LIBKCommonHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBKCommon_INCLUDEDIR)/%.h
 	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
 	cp $(LIBKCommon_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
 

@@ -8,7 +8,7 @@
 #include <mem_manager.h>
 #include <kmacro.h>
 
-void _kernel_init(size_t magic,size_t mbd)
+void _kernel_init(void* mbd)
 {
   /* Initialize terminal interface */
   terminal_initialize();
@@ -16,15 +16,15 @@ void _kernel_init(size_t magic,size_t mbd)
   setFILE(stdin, FILE_READ, read_buf_start, read_buf_end, read_buf_start, 0, 0, 0, NULL);
   setFILE(stderr, FILE_WRITE | FILE_READ, read_buf_start, read_buf_end, read_buf_start, write_buf_start, write_buf_end, write_buf_start, terminal_writeErrBuffers);
 
-  read_physical_memory(magic, map_page((void *)mbd, _pre_kernel_next_virtaddr(), 3));
+  // read_physical_memory(map_page((void *)mbd, _pre_kernel_next_virtaddr(), 3));
 
 }
 
 void kernel_main(void)
 {
-  int *test = kmalloc(sizeof(int) * 4, 0);
-  int*t2=kmalloc(4,0);
-  kfree(test);
-  kfree(t2);
+  // int *test = kmalloc(sizeof(int) * 4, 0);
+  // int*t2=kmalloc(4,0);
+  // kfree(test);
+  // kfree(t2);
   printf("test %03d test\n", 1);
 }

@@ -175,12 +175,8 @@ static void print_chunk_list()
   printf("%d\n", 0);
 }
 
-void read_physical_memory(uint32_t magic, multiboot_info_t *mbd)
+void read_physical_memory(multiboot_info_t *mbd)
 {
-  if (magic != MULTIBOOT_BOOTLOADER_MAGIC)
-  {
-    CRASH("invalid magic number!");
-  }
   if (!(mbd->flags >> 6 & 0x1))
   {
     CRASH("invalid memory map given by GRUB bootloader");

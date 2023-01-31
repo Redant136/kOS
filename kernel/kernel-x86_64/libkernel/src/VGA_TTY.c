@@ -3,7 +3,7 @@
 
 #define VGA_WIDTH 80
 #define VGA_HEIGHT 25
-// #define OUTPUT_POINTER 0xC03FF000
+#define OUTPUT_POINTER 0xFFFFFC00001FF000
 
 static inline uint8_t vga_entry_color(enum vga_color fg, enum vga_color bg)
 {

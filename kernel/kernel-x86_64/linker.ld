@@ -12,10 +12,14 @@ SECTIONS
 	.multiboot.text BLOCK(4K) : ALIGN(4K) {
   	*(.multiboot.text)
   }
+	.bootstrap ALIGN (4K) : ALIGN(4K) {
+		bootstrap_loader.o (.text)
+	}
+
 	. += KERNEL_OFFSET;
 	.text ALIGN (4K) : AT (ADDR(.text) - KERNEL_OFFSET)
 	{
-		*(.text)
+		*(.text) // exclude bootstrap_loader.o
 	}
 	.rodata ALIGN (4K) : AT (ADDR(.rodata) - KERNEL_OFFSET)
 	{
