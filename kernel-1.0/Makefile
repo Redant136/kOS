@@ -2,12 +2,13 @@ CCPATH:=$(HOME)/opt/cross/bin
 export PATH:=$(CCPATH):$(PATH)
 
 # ix86 x64 arm64 arm32
-ARCH?=ix86
+# ARCH?=ix86
+ARCH:=x64
 ifeq ($(ARCH),i386)
 ARCH:=ix86
 else ifeq ($(ARCH),x86)
 ARCH:=ix86
-else ifeq ($(ARCH),i686)
+else ifeq($(ARCH),i686)
 ARCH:=ix86
 
 else ifeq ($(ARCH),x86_64)
@@ -21,37 +22,36 @@ ARCH:=x64
 
 else ifeq ($(ARCH),arm_32)
 ARCH:=arm32
-else ifeq ($(ARCH),arm-32)
+else ifeq($(ARCH),arm-32)
 ARCH:=arm32
 
 else ifeq ($(ARCH),arm)
 ARCH:=arm64
 else ifeq ($(ARCH),arm_64)
 ARCH:=arm64
-else ifeq ($(ARCH),arm-64)
+else ifeq($(ARCH),arm-64)
 ARCH:=arm64
 endif
 
 
+ASMC:=$(ARCH)-elf-as
+CC:=$(ARCH)-elf-gcc
 CFLAGS?=-O2 -g 
 CFLAGS:=$(CFLAGS) -Wall -Wextra -ffreestanding -fno-exceptions -Wno-unused-function
+ifeq ($(ARCH), x64)
+CFLAGS:=$(CFLAGS) -m64
+endif
 LFLAGS:=-ffreestanding -O2 -nostdlib -lgcc -z max-page-size=0x1000
-DEFINES:=
 
 ifeq ($(ARCH), x64)
-CC:=x86_64-elf-gcc
-CFLAGS+=-mcmodel=large
-DEFINES+=-D__x86_64__ -D__x64__ -Dkernel_vadr=0xC00000000000
+CFLAGS+=-m64 -D__x86_64__ -D__x64__
 else ifeq ($(ARCH),ix86)
-CC:=i686-elf-gcc
-DEFINES+=-D__i386__ -D__i686__ -D__ix86__ -Dkernel_vadr=0xC0000000
-else ifeq ($(ARCH), arm32)
-CFLAGS+=
-DEFINES+=-D__aarch32__
+CFLAGS+=-D__i386__ -D__i686__ -D__ix86__
+else ifeq($(ARCH), arm32)
+CFLAGS+=-D__aarch32__
 else ifeq ($(ARCH),arm64)
-DEFINES+=-D__aarch64__
+CFLAGS+=-D__aarch64__
 endif
-CFLAGS+=$(DEFINES)
 
 buildDIR:=build
 sysroot:=$(buildDIR)/sysroot
@@ -65,19 +65,18 @@ LIBK_SOURCEDIR:=$(KERNEL_FOLDER)/libkernel/src
 LIBKCommon_INCLUDEDIR:=kernel/libkernel/include
 LIBKCommon_SOURCEDIR:=kernel/libkernel/src
 
-ASM_INCLUDEDIR:=$(KERNEL_FOLDER)/asmInclude
+LIBCList:=stdlib stdio
+LIBCHeaders:= sys/cdefs.h string.h ctype.h sys/types.h
+LIBKList:=VGA_TTY mem/paging mem/virtual_mem_manager mem/physical_mem_manager
+LIBKHeaders:= mem_manager.h
+LIBKListCommon:=
+LIBKHeadersCommon:=kmacro.h multiboot.h sys/elf32.h sys/elf64.h sys/elf_common.h sys/elf_parser.h
 
-LIBCList:= $(shell grep -rl ".c" $(LIBC_SOURCEDIR) | sed "s,$(LIBC_SOURCEDIR)/,,g" | sed "s,\.c,,g")
-LIBCHeaders:= $(shell grep -rl ".h" $(LIBC_INCLUDEDIR) | sed "s,$(LIBC_INCLUDEDIR)/,,g")
-LIBKList:= $(shell grep -rl ".c" $(LIBK_SOURCEDIR) | sed "s,$(LIBK_SOURCEDIR)/,,g" | sed "s,\.c,,g")
-LIBKHeaders:= $(shell grep -rl ".h" $(LIBK_INCLUDEDIR) | sed "s,$(LIBK_INCLUDEDIR)/,,g")
-LIBKListCommon:= $(shell grep -rl ".c" $(LIBKCommon_SOURCEDIR) | sed "s,$(LIBKCommon_SOURCEDIR)/,,g" | sed "s,\.c,,g")
-LIBKHeadersCommon:= $(shell grep -rl ".h" $(LIBKCommon_INCLUDEDIR) | sed "s,$(LIBKCommon_INCLUDEDIR)/,,g")
 
 CRTBEGIN_OBJ:=$(shell $(CCPATH)/$(CC) $(CFLAGS) -print-file-name=crtbegin.o)
 CRTEND_OBJ:=$(shell $(CCPATH)/$(CC) $(CFLAGS) -print-file-name=crtend.o)
 
-IFLAGS:= $(addprefix -I,$(LIBC_INCLUDEDIR) $(LIBK_INCLUDEDIR) $(LIBKCommon_INCLUDEDIR) $(ASM_INCLUDEDIR))
+IFLAGS:=$(addprefix -I,$(LIBC_INCLUDEDIR) $(LIBK_INCLUDEDIR) $(LIBKCommon_INCLUDEDIR))
 
 LIBCFILES:=$(addprefix $(sysroot)/usr/lib/, $(addsuffix .o,$(LIBCList)))
 LIBCHeaderFILES:=$(addprefix $(sysroot)/usr/include/, $(LIBCHeaders))
@@ -89,12 +88,12 @@ LIBKCommonHeaderFILES:=$(addprefix $(sysroot)/lib/kernel/include/, $(LIBKHeaders
 
 .PHONY: all
 
-all: kernel libc libk kOS.iso Makefile
+all: kernel libc libk kOS.iso
 
 clean:
 	rm -rf build
 
-run: $(buildDIR)/kOS.iso Makefile
+run: $(buildDIR)/kOS.iso
 	qemu-system-i386 -cdrom $(buildDIR)/kOS.iso
 
 kOS.iso: $(buildDIR)/kOS.iso
@@ -106,11 +105,11 @@ libk: $(LIBKFILES)
 # ---------------- iso ------------------------
 
 $(buildDIR)/kOS.iso: $(sysroot)/boot/kOS.bin $(sysroot)/boot/grub/grub.cfg
-	grub2-mkrescue -o $(buildDIR)/kOS.iso $(sysroot)
+	grub2-file --is-x86-multiboot $(buildDIR)/kOS.bin && grub2-mkrescue -o $(buildDIR)/kOS.iso $(sysroot)
 
 # ---------------- libc/libk -------------------
 
-$(LIBCFILES): $(sysroot)/usr/lib/%.o: $(LIBC_SOURCEDIR)/%.c $(LIBC_INCLUDEDIR)/%.h $(LIBC_INCLUDEDIR)/**/*.h
+$(LIBCFILES): $(sysroot)/usr/lib/%.o: $(LIBC_SOURCEDIR)/%.c $(LIBC_INCLUDEDIR)/%.h $(LIBC_INCLUDEDIR)/**/*.h $(LIBCHeaderFILES)
 	@ mkdir -p $(sysroot)/usr/lib/$(*D)
 	@ mkdir -p $(sysroot)/usr/src/$(*D)
 	@ mkdir -p $(sysroot)/usr/include/$(*D)
@@ -118,21 +117,21 @@ $(LIBCFILES): $(sysroot)/usr/lib/%.o: $(LIBC_SOURCEDIR)/%.c $(LIBC_INCLUDEDIR)/%
 	cp $(LIBC_INCLUDEDIR)/$*.h $(sysroot)/usr/include/$*.h
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
-$(LIBCHeaderFILES): $(sysroot)/usr/include/%.h: $(LIBC_INCLUDEDIR)/%.h
+$(LIBCHeaderFILES): $(sysroot)/usr/include/%.h: $(LIBC_INCLUDEDIR)/%.h $(LIBC_INCLUDEDIR)/**/*.h 
 	@ mkdir -p $(sysroot)/usr/include/$(*D)
 	cp $(LIBC_INCLUDEDIR)/$*.h $(sysroot)/usr/include/$*.h
 
-$(LIBKFILES): $(sysroot)/lib/kernel/%.o: $(LIBK_SOURCEDIR)/%.c $(LIBK_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h $(LIBKCommon_INCLUDEDIR)/**/*.h
+$(LIBKFILES): $(sysroot)/lib/kernel/%.o: $(LIBK_SOURCEDIR)/%.c $(LIBK_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h $(LIBKHeaderFILES) $(LIBKCommonHeaderFILES)
 	@ mkdir -p $(sysroot)/lib/kernel/$(*D)
 	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
 	cp $(LIBK_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
 	$(CC) $(CFLAGS) $(IFLAGS) -c $< -o $@
 
-$(LIBKHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBK_INCLUDEDIR)/%.h
+$(LIBKHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBK_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h
 	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
 	cp $(LIBK_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
 
-$(LIBKListCommon): $(sysroot)/lib/kernel/%.o: $(LIBKCommon_SOURCEDIR)/%.c $(LIBKCommon_INCLUDEDIR)/%.h $(LIBK_INCLUDEDIR)/**/*.h $(LIBKCommon_INCLUDEDIR)/**/*.h
+$(LIBKListCommon): $(sysroot)/lib/kernel/%.o: $(LIBKCommon_SOURCEDIR)/%.c $(LIBKCommon_INCLUDEDIR)/%.h $(LIBKCommon_INCLUDEDIR)/**/*.h $(LIBKCommonHeaderFILES)
 	@ mkdir -p $(sysroot)/lib/kernel/$(*D)
 	@ mkdir -p $(sysroot)/lib/kernel/include/$(*D)
 	cp $(LIBKCommon_INCLUDEDIR)/$*.h $(sysroot)/lib/kernel/include/$*.h
@@ -147,43 +146,26 @@ $(LIBKCommonHeaderFILES): $(sysroot)/lib/kernel/include/%.h: $(LIBKCommon_INCLUD
 CRT_OBJ_DIR:=$(sysroot)/lib/kernel
 crt_obj:=$(CRT_OBJ_DIR)/crti.o $(CRTBEGIN_OBJ) $(CRTEND_OBJ) $(CRT_OBJ_DIR)/crtn.o
 
-# $(buildDIR)/bootstrap_loader.bin: kernel/bootstrap_linker.ld $(buildDIR)/bootstrap_loader.o $(LIBCFILES) $(LIBKFILES)
-# 	$(CC) -T $(KERNEL_FOLDER)/bootstrap_linker.ld -o $(buildDIR)/kOS.bin $(LFLAGS)\
-# 			$(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
-# 			$(CRTEND_OBJ) $(CRT_OBJ_DIR)/crtn.o $(DEFINES)
-
-# $(buildDIR)/bootstrap_loader.o: $(KERNEL_FOLDER)/bootstrap_loader.c
-# 	$(CC) $(CFLAGS) $(IFLAGS) -c $(KERNEL_FOLDER)/bootstrap_loader.c -o $(buildDIR)/bootstrap_loader.o
-
-
-
-# $(buildDIR)/kOS.bin: $(KERNEL_FOLDER)/linker.ld $(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
-#  		$(crt_obj)
-# 	$(CC) -T $(KERNEL_FOLDER)/linker.ld -o $(buildDIR)/kOS.bin $(LFLAGS)\
-# 		$(CRT_OBJ_DIR)/crti.o $(CRTBEGIN_OBJ)\
-# 		$(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
-# 		$(CRTEND_OBJ) $(CRT_OBJ_DIR)/crtn.o $(DEFINES) -mcmodel=kernel
 $(buildDIR)/kOS.bin: $(KERNEL_FOLDER)/linker.ld $(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
  		$(crt_obj)
 	$(CC) -T $(KERNEL_FOLDER)/linker.ld -o $(buildDIR)/kOS.bin $(LFLAGS)\
+		$(CRT_OBJ_DIR)/crti.o $(CRTBEGIN_OBJ)\
 		$(buildDIR)/boot.o $(buildDIR)/kernel.o $(LIBCFILES) $(LIBKFILES)\
-		$(CFLAGS)
+		$(CRTEND_OBJ) $(CRT_OBJ_DIR)/crtn.o
 
-$(CRT_OBJ_DIR)/crti.o: kernel/crti.S $(buildDIR)/boot.o
+$(CRT_OBJ_DIR)/crti.o: $(KERNEL_FOLDER)/crti.s $(buildDIR)/boot.o
 	@ mkdir -p $(CRT_OBJ_DIR)
-	$(CC) $(CFLAGS) $(IFLAGS) -c kernel/crti.S -o $(CRT_OBJ_DIR)/crti.o
+	$(ASMC) $(KERNEL_FOLDER)/crti.s -o $(CRT_OBJ_DIR)/crti.o
 
-$(CRT_OBJ_DIR)/crtn.o: kernel/crtn.S $(buildDIR)/boot.o
+$(CRT_OBJ_DIR)/crtn.o: $(KERNEL_FOLDER)/crtn.s $(buildDIR)/boot.o
 	@ mkdir -p $(CRT_OBJ_DIR)
-	$(CC) $(CFLAGS) $(IFLAGS) -c kernel/crtn.S -o $(CRT_OBJ_DIR)/crtn.o
+	$(ASMC) $(KERNEL_FOLDER)/crtn.s -o $(CRT_OBJ_DIR)/crtn.o
 
-BootASM:=boot_$(ARCH).S
-# BootASM:=_boot.S
-$(buildDIR)/boot.o: kernel/$(BootASM) $(ASM_INCLUDEDIR)/*.S
+$(buildDIR)/boot.o: $(KERNEL_FOLDER)/boot.s
 	@ mkdir -p build
-	$(CC) $(CFLAGS) $(IFLAGS) -c kernel/$(BootASM) -o $(buildDIR)/boot.o
+	$(ASMC) $(KERNEL_FOLDER)/boot.s -o $(buildDIR)/boot.o
 
-$(buildDIR)/kernel.o: kernel/kernel.c
+$(buildDIR)/kernel.o: kernel/kernel.c $(LIBC_INCLUDEDIR)/**/*.h $(LIBK_INCLUDEDIR)/**/*.h
 	@ mkdir -p build
 	$(CC) $(CFLAGS) $(IFLAGS) -c kernel/kernel.c -o $(buildDIR)/kernel.o
 

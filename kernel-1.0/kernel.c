@@ -7,9 +7,8 @@
 #include <stdio.h>
 #include <mem_manager.h>
 #include <kmacro.h>
-#include <sys/types.h>
 
-void _kernel_init(void*mbd)
+void _kernel_init(void* mbd)
 {
   /* Initialize terminal interface */
   terminal_initialize();
@@ -17,9 +16,7 @@ void _kernel_init(void*mbd)
   setFILE(stdin, FILE_READ, read_buf_start, read_buf_end, read_buf_start, 0, 0, 0, NULL);
   setFILE(stderr, FILE_WRITE | FILE_READ, read_buf_start, read_buf_end, read_buf_start, write_buf_start, write_buf_end, write_buf_start, terminal_writeErrBuffers);
 
-  printf("a");
-
-  //read_physical_memory(map_page((void *)mbd, _pre_kernel_next_virtaddr(), 3));
+  // read_physical_memory(map_page((void *)mbd, _pre_kernel_next_virtaddr(), 3));
 
 }
 
